@@ -1,0 +1,82 @@
+@font-face {
+    font-family: corn;
+    src: url(corn.ttf);
+}
+body{
+    overflow: hidden;
+    color: #a8eea8;
+    font-family: corn;
+    image-rendering: pixelated;
+}
+#bottom {
+    font-size: 20px;
+    width: 100vw;
+    padding: 10px 10px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    background-color: rgba(75, 58, 49, 0.6);
+    z-index: 10;
+}
+#bottom a {
+    border-right: solid 3px;
+    padding: 0 5px;
+}
+#bottom button {
+    color: #a8eea8;
+    background: none;
+    border: solid 3px;
+    font-family: corn;
+    font-size: 17px;
+}
+#store {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: min(400px, 90vw);
+    height: 100vh;
+    color: #4b3a3188;
+    background-color: #81e681;
+    padding: 15px;
+    user-select: none;
+    box-shadow: #a8eea8 -1px 0 5px 5px;
+}
+#store h1 {
+    font-size: 35px;
+    margin: 0 0 15px;
+    display: inline;
+}
+.upgradeOuter {
+    background-color: #a8eea8;
+    border-radius: 5px;
+    width: calc(100% - 30px);
+    padding: 15px;
+    margin-bottom: 8px;
+}
+.upgrade {
+    width: 100%;
+    display: flex;
+}
+.upgrade img {
+    flex: 0.3;
+    height: 100%;
+    background-color: #42332b;
+    border: #549254 solid 5px;
+}
+.upgrade div {
+    font-size: 20px;
+    margin: 0;
+    flex: 1;
+    padding: 0 10px;
+}
+.storeDesc {
+    margin: 0;
+    font-size: 13px;
+}
+.upgradeProgress {
+    background-color: black;
+    margin-top: 5px;
+    width: 100%;
+    height: 10px;
+}
+.upgradeProgress div {height: 100%;}
