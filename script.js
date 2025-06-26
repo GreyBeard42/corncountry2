@@ -1,11 +1,10 @@
-let images = []
-let farmland, grass, animations, animateid, w, h, edges, clickinglastframe, font, hasClicked
+let farmland, grass, scale, animations, animateid, w, h, edges, clickinglastframe, font, hasClicked
 let game
+let cropsprites
 
 function preload() {
-    for(let i=0; i<10; i++) images.push(loadImage(`images/0${i}.png`))
-    for(let i=10; i<11; i++) images.push(loadImage(`images/${i}.png`))
     font = loadFont("corn.ttf")
+    cropsprites = loadImage("images/crops.png")
 }
 
 function setup() {
@@ -14,7 +13,6 @@ function setup() {
     colorMode(RGBA)
     textAlign(CENTER, CENTER)
     angleMode(DEGREES)
-
     game = new Game()
     
     farmland = {}
@@ -27,7 +25,7 @@ function setup() {
     grass = {}
     for(let x=-50; x<50; x++) {
         for(let y=-50; y<50; y++) {
-            grass[x+","+y] = new Crop((x+","+y),7,0)
+            grass[x+","+y] = 0
         }
     }
 
@@ -41,9 +39,9 @@ function draw() {
         noSmooth()
     }
 
+    scale = min(width/(w+4), (height-100)/(h+4))
     background("#81e681")
     textFont(font)
-    let scale = min(width/(w+4), (height-100)/(h+4))
     translate(scale*1.5, scale*1.5)
 
     // grass
@@ -57,10 +55,10 @@ function draw() {
             } else temp += char
         })
         y = parseInt(temp)
-        image(images[grass[key].img], x*scale, y*scale, scale+1, scale+1)
+        image(cropsprites,x*scale,y*scale, scale+1,scale+1,(18*(grass[key])),0,18,18)
         if(frameCount % 30 === 0) {
-            grass[key].img++
-            if(grass[key].img > 10) grass[key].img = 7
+            grass[key]++
+            if(grass[key] > 3) grass[key] = 0
         }
     })
 
@@ -82,7 +80,7 @@ function draw() {
 
         let crop = farmland[key]
         let imgx = x*scale+((width-(w+4)*scale)/2)
-        image(images[crop.img], imgx, y*scale, scale+1, scale+1)
+        image(cropsprites,imgx,y*scale, scale+1,scale+1,(18*(farmland[key].img%4)),(18*Math.floor((farmland[key].img/4))),18,18)
         crop.grow()
 
         if(crop.img === 0) return
@@ -103,10 +101,8 @@ function draw() {
         if(mouseIsPressed && !clickinglastframe) {
             if(mouseX > imgx+scale*1.5 && mouseX < imgx+scale+scale*1.5) {
                 if(mouseY > y*scale+scale*1.5 && mouseY < (y+1)*scale+scale*1.5) {
-                    let increase = crop.harvest()
-                    if(increase) animations[animateid] = new Animation("+"+increase, random(imgx, imgx+scale), random(y*scale, (y+0.5)*scale))
-                    animateid++
-                    farmland[key] = new Crop(key,1,5)
+                    crop.harvest()
+                    farmland[key] = new Crop(key,1,3)
                     hasClicked = true
                 }
             }
@@ -138,10 +134,10 @@ function resize(x1, x2, y1, y2) {
     w = x2-x1
     h = y2-y1
     for(let x=0; x<w+1; x++) {
-        farmland[`${x},${Math.round(h)}`] = new Crop(`${x},${Math.round(h)}`,1,5)
+        farmland[`${x},${Math.round(h)}`] = new Crop(`${x},${Math.round(h)}`,1,3)
     }
     for(let y=0; y<h+1; y++) {
-        farmland[`${Math.round(w)},${y}`] = new Crop(`${Math.round(w)},${y}`,1,5)
+        farmland[`${Math.round(w)},${y}`] = new Crop(`${Math.round(w)},${y}`,1,3)
     }
 }
 
@@ -183,33 +179,29 @@ function sprite(x,y,w=11,h=w) {
 }
 
 class Crop {
-    constructor(id, img=0, time=0) {
-        this.img = img
-        this.lastimg = img+5
+    constructor(id) {
+        this.img = game.crop*6+5
+        this.lastimg = this.img+5
         this.growth = 0
-        this.time = max(time*60+game.growthtimeoffset, 10)
+        this.time = game.growthtime
         this.id = id
     }
     grow() {
         this.growth++
-        this.img = ceil(this.growth/this.time*5)
-        if(this.img > this.lastimg) this.img = this.lastimg
-        if(this.growth > this.time+game.decaytime && this.img !== 0) this.reset()
+        this.img = floor(this.growth/this.time*5)+this.lastimg-5
+        if(this.growth > this.time) this.img = this.lastimg
+        if(this.growth > this.time+game.decaytime) this.reset()
     }
     harvest() {
-        if(this.img > 0)
-        if(this.growth > this.time) {
-            game.addScore(3)
+        if(this.growth >= this.time-10) {
+            game.addScore(game.cropValue)
             this.reset()
-            return 3
-        }else if(this.growth >= this.time*(this.lastimg-this.img-2)/(this.lastimg-this.img)) {
-            game.addScore(1)
-            this.reset()
-            return 1
+            animations[animateid] = new Animation("+"+game.cropValue, random(mouseX-scale*2, mouseX-scale), mouseY-scale*1.5)
+            animateid++
         }
     }
     reset() {
-        farmland[this.id] = new Crop(this.id,1,5)
+        farmland[this.id] = new Crop(this.id,1,3)
     }
 }
 
@@ -220,6 +212,7 @@ class Animation {
         this.y = y
         this.speed = random(1, 2)
         this.opacity = 100
+        this.id = animateid
     }
     draw() {
         colorMode(RGBA)
@@ -227,28 +220,39 @@ class Animation {
         fill(255,255,255,this.opacity)
         text(this.text, this.x, this.y)
         this.y -= this.speed
-        this.opacity -= 0.1
+        this.opacity -= 0.2
+        if(this.opacity<10) delete animations[this.id]
     }
 }
 
 class Upgrade {
-    constructor(name, cost, cords, desc, func=() => {console.log("MISSING FUNCTION")}) {
+    constructor(name, cost, cords, desc, func=() => {console.log("MISSING FUNCTION")}, maxamount=-1, multiplier=1) {
         this.name = name
         this.cost = cost
         this.desc = desc
         this.cords = cords
         this.func = func
         this.built = false
+        this.amountowned = 0
+        this.maxamount = maxamount
+        this.multiplier = multiplier
     }
     async build() {
         this.built = true
         this.element = document.createElement("div")
         this.element.classList.add("upgradeOuter")
         this.element.addEventListener("click", () => {
+            if(this.amountowned >= this.maxamount && this.maxamount>0) return
             if(game.score < this.cost) return
-            game.score -= this.cost
+            game.addScore(-this.cost)
             this.func()
+            this.cost *= this.multiplier
+            this.ecost.innerText = this.cost+" corn"
             game.boughtUpgrade(this.name)
+            this.amountowned++
+            if(this.amountowned >= this.maxamount && this.maxamount>0) {
+                this.element.remove()
+            }
         })
         let flex = document.createElement('div')
         flex.classList.add("upgrade")
@@ -261,10 +265,10 @@ class Upgrade {
         let ename = document.createElement("a")
         ename.innerText = this.name
         yap.appendChild(ename)
-        let ecost = document.createElement("a")
-        ecost.innerText = this.cost+" corn"
-        ecost.style = "float: right;"
-        yap.appendChild(ecost)
+        this.ecost = document.createElement("a")
+        this.ecost.innerText = this.cost+" corn"
+        this.ecost.style = "float: right;"
+        yap.appendChild(this.ecost)
         let edesc = document.createElement('p')
         edesc.classList.add("storeDesc")
         edesc.innerHTML = this.desc
@@ -289,8 +293,10 @@ class Upgrade {
 class Game {
     constructor() {
         this.score = 0
-        this.decaytime = 3*60
-        this.growthtimeoffset = 0
+        this.decaytime = 1.5*60
+        this.growthtime = 3*60
+        this.cropValue = 3
+        this.crop = 0
 
         this.store = document.getElementById("store")
         this.store.style = "display: none;"
@@ -303,14 +309,20 @@ class Game {
         this.closeStore.addEventListener("click", () => {
             this.store.style = "display: none;"
         })
-        this.hiddenUpgrade = document.getElementById("hiddenUpgrade")
 
         this.bestUpgrade = 0
         this.upgrades = []
-        this.upgrades.push(new Upgrade("Speed Up", 10, [0,0], "Speed up crop growth", () => {game.growthtimeoffset -= 30}))
-        this.upgrades.push(new Upgrade("Resilliant Crops", 50, [0,1], "Decrease decay time", () => {game.decaytime += 30}))
-        this.upgrades.push(new Upgrade("Resize", 500, [1,0], "Increase farmland dimensions by 1.<br><i>\"Why not (x+1)+(y+1)-1 more corn?\"</i>", increaseSize))
-        this.upgrades.push(new Upgrade("Blue Corn", 500, [1,1], "Unlock Blue Corn.<br><i>\"Wait blue food exists?<br>Can we finnally eat Blue goldfish??\"</i>"))
+        this.upgrades.push(new Upgrade("Speed Up", 9, [0,0], "Speed up crop growth<br><i>\"3 seconds is just wayyy too slow for my farm...\"</i>", () => {game.growthtime = max(game.growthtime-30, 30)}))
+        this.upgrades.push(new Upgrade("Resize", 50, [1,0], "Increase farmland dimensions by 1.<br><i>\"Why not (x+1)+(y+1)-1 more corn?\"</i>", increaseSize, 25, 2))
+        this.upgrades.push(new Upgrade("Resilliant Crops", 750, [0,1], "Decrease decay time", () => {game.decaytime = min(game.decaytime+30, 4*60)}))
+        this.upgrades.push(new Upgrade("Blue Corn", 2500, [1,1], "Unlock Blue Corn.<br><i>\"Wait blue food exists?<br>Can we finnally eat Blue goldfish??\"</i>", () => {
+            game.crop = 1
+            Object.keys(farmland).forEach(key => {
+                farmland[key] = new Crop(key)
+            })
+            game.cropValue = 5
+            game.growthtime = (6*60+game.growthtime)/2
+        }, 1))
 
         this.upgrades[0].build()
     }
@@ -320,14 +332,13 @@ class Game {
 
         let i = 0
         this.upgrades.forEach((up) => {
-            if(this.score >= up.cost*0.7 && !up.built) {
-                up.build()
-            } else if(i-1 <= this.bestUpgrade && !up.built) {
-                //Build it with ???? for title desc and image 
+            if(i-1 <= this.bestUpgrade && !up.built) {
                 up.build()
             }
             i++
         })
+
+        document.title = this.score + " corn - Corn Country 2 - GreyBeard42's Homepage"
     }
     boughtUpgrade(name) {
         let i = 0
