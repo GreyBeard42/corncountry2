@@ -52,6 +52,7 @@ function draw() {
     textFont(font)
     translate(scale*1.5, scale*1.5)
 
+    if(!game.loaded) return
     // grass
     for(let key in grass) {
         let x, y
@@ -130,7 +131,8 @@ function draw() {
     for(let a in animations) {
         animations[a].draw()
     }
-    
+
+    if(localStorage.getItem("data")) hasClicked = true
     if(!hasClicked) {
         push()
         translate(-scale*1.5, -scale*1,5)
@@ -140,15 +142,12 @@ function draw() {
         text("CLICK TO HARVEST", width/2+5, 15)
         fill("white")
         text("CLICK TO HARVEST", width/2, 10)
+        //taking it quite litterally
+        if(mouseIsPressed) if(mouseX > width/2-scale*1.5 && mouseX < width/2+scale*1.5) {
+            if(mouseY > scale/3 && mouseY < scale*3/4) game.clickedtoharvest = true
+        }
         pop()
     }
-
-    push()
-    textSize(scale/5)
-    fill("white")
-    textAlign(LEFT, TOP)
-    text("FPS: "+round(frameRate()),-scale*1.5+5,5-scale*1.5)
-    pop()
 }
 
 function resize(x1, x2, y1, y2) {
@@ -177,7 +176,7 @@ function increaseSize() {
 function sprite(x,y,w=11,h=w) {
     return new Promise((resolve, reject) => {
         let sheet = document.createElement("img")
-        sheet.src = "images/upgrades.png"
+        sheet.src = "images/icons.png"
         sheet.style = "display: none;"
         document.body.appendChild(sheet)
         sheet.onload = () => {
@@ -319,23 +318,26 @@ class Upgrade {
         this.maxamount = maxamount
         this.multiplier = multiplier
     }
+    buy() {
+        if(this.amountowned >= this.maxamount && this.maxamount>0) return
+        if(game.score < this.cost) return
+        game.addScore(-this.cost)
+        this.func()
+        this.cost *= this.multiplier
+        this.cost = round(this.cost)
+        this.ecost.innerText = this.cost+" corn"
+        game.boughtUpgrade(this.name)
+        this.amountowned++
+        if(this.amountowned >= this.maxamount && this.maxamount>0) {
+            this.element.style.display = "none"
+        }
+    }
     async build() {
         this.built = true
         this.element = document.createElement("div")
         this.element.classList.add("upgradeOuter")
         this.element.addEventListener("click", () => {
-            if(this.amountowned >= this.maxamount && this.maxamount>0) return
-            if(game.score < this.cost) return
-            game.addScore(-this.cost)
-            this.func()
-            this.cost *= this.multiplier
-            this.cost = round(this.cost)
-            this.ecost.innerText = this.cost+" corn"
-            game.boughtUpgrade(this.name)
-            this.amountowned++
-            if(this.amountowned >= this.maxamount && this.maxamount>0) {
-                this.element.remove()
-            }
+            this.buy()
         })
         let flex = document.createElement('div')
         flex.classList.add("upgrade")
@@ -374,26 +376,99 @@ class Upgrade {
 }
 
 class Achievement {
-    constructor(name, img, unlockFunc=()=>{}) {
+    constructor(name, desc, img, unlockFunc=()=>{}) {
         this.name = name
         this.img = img
+        this.desc = desc
         this.unlockFunc = unlockFunc
+        this.unlocked = false
     }
-    build() {
+    async addToAchievesPage() {
+        let outer = document.createElement('div')
+        outer.classList.add("achievementIcon")
+        this.lockedimg = await sprite(5, 3)
+        outer.appendChild(this.lockedimg)
+        this.achievepageimg = await sprite(this.img[0], this.img[1])
+        this.achievepageimg.style.display = "none"
+        outer.appendChild(this.achievepageimg)
+
+        let explain = document.createElement("div")
+        explain.classList.add("tooltip")
+        explain.appendChild(await sprite(this.img[0], this.img[1]))
+        let info = document.createElement("div")
+        let title = document.createElement("a")
+        title.innerText = this.name
+        info.appendChild(title)
+        let desc = document.createElement("a")
+        desc.innerText = this.desc
+        desc.style = "font-size: 10px;"
+        info.appendChild(desc)
+        explain.style.display = "none"
+        outer.addEventListener("mouseenter", () => {if(this.unlocked) explain.style.display = "flex"})
+        outer.addEventListener("mouseleave", () => {explain.style.display = "none"})
+        explain.appendChild(info)
+        outer.appendChild(explain)
+
+        document.getElementById("achieveinner").appendChild(outer)
+        
+        requestAnimationFrame(() => {
+            explain.style.display = "flex"
+            let rect = explain.getBoundingClientRect()
+            if(rect.right > window.innerWidth) explain.style.left = "-220px"
+            explain.style.display = "none"
+        })
+    }
+    async build(popup=true) {
+        this.unlocked = true
+        this.lockedimg.style.display = "none"
+        this.achievepageimg.style.display = "inline"
         this.unlockFunc = () => {return false}
+        if(!popup) return
         this.outer = document.createElement("div")
         this.outer.classList.add("achievement")
+        this.outer.appendChild(await sprite(this.img[0], this.img[1]))
+
+        let textdiv = document.createElement("div")
+        let title = document.createElement("a")
+        title.innerHTML = "Achievement Unlocked:<br>"+this.name
+        textdiv.appendChild(title)
+        this.outer.appendChild(textdiv)
+
         document.getElementById("achieveouter").appendChild(this.outer)
+
+        setTimeout(() => {this.outer.remove()}, 7000)
+    }
+}
+
+//really want to do hard reset?
+function hardreset() {
+    if(confirm("Are you sure you want to Hard Reset your Game?")) {
+        if(confirm("really..?")) {
+            if(confirm("You'll lose all of your progress!")) {
+                if(confirm("Welp Ok.\nIf really do press ok this time...\nYou'll be starting from the beginning.\nDon't say I didn't warn you!")) {
+                    game.HARDRESET()
+                }
+            }
+        }
     }
 }
 
 class Game {
     constructor() {
+        this.loaded = false
+
         this.score = 0
+        this.lifetimescore = 0
         this.decaytime = 1.5*60
         this.growthtime = 3*60
         this.cropValue = 3
         this.crop = 0
+
+        this.openedgithub = false
+        this.openedoldgame = false
+        this.clickedtoharvest = false
+
+        if(!localStorage.getItem("data")) document.getElementById("loading").remove()
 
         //store
         this.store = document.getElementById("store")
@@ -407,13 +482,27 @@ class Game {
             this.store.style = "display: none;"
         })
 
+        //achievement tab
+        this.achieveTab = document.getElementById("achievements")
+        document.getElementById("openAchieves").addEventListener("click", () => {
+            if(this.achieveTab.style.cssText == "display: none;") this.achieveTab.style = "display: block;"
+            else this.achieveTab.style = "display: none;"
+        })
+
+        //settings
+        this.settings = document.getElementById("settings")
+        document.getElementById("openSettings").addEventListener("click", () => {
+            if(this.settings.style.cssText == "display: none;") this.settings.style = "display: block;"
+            else this.settings.style = "display: none;"
+        })
+
         //upgrades
         this.bestUpgrade = 0
         this.upgrades = []
         this.upgrades.push(new Upgrade("Speed Up", 9, [0,0], "Speed up crop growth<br><i>\"3 seconds is just wayyy too slow for my farm...\"</i>", () => {game.growthtime = max(game.growthtime-30, 30)}, -1, 1.1))
-        this.upgrades.push(new Upgrade("Resize", 50, [1,0], "Increase farmland dimensions by 1.<br><i>\"Why not (w+1)+(h+1)-1 more corn?\"</i>", increaseSize, 25, 2))
-        this.upgrades.push(new Upgrade("Resilliant Crops", 750, [0,1], "Decrease decay time", () => {game.decaytime = min(game.decaytime+30, 4*60)}, -1, 1.2))
-        this.upgrades.push(new Upgrade("Blue Corn", 2500, [1,1], "Unlock Blue Corn.<br><i>\"Can we finnally eat Blue goldfish??\"</i>", () => {
+        this.upgrades.push(new Upgrade("Resize", 50, [2,1], "Increase farmland dimensions by 1.<br><i>\"Why not (w+1)+(h+1)-1 more corn?\"</i>", increaseSize, 25, 2))
+        this.upgrades.push(new Upgrade("Resilliant Crops", 750, [2,3], "Increase decay time", () => {game.decaytime = floor(game.decaytime*1.25)}, -1, 1.2))
+        this.upgrades.push(new Upgrade("Blue Corn", 2500, [6,0], "Unlock Blue Corn.<br><i>\"Can we finnally eat Blue goldfish??\"</i>", () => {
             game.crop = 1
             for(let key in farmland) {
                 farmland[key] = new Crop(key)
@@ -421,10 +510,11 @@ class Game {
             game.cropValue = 5
             game.growthtime = (6*60+game.growthtime)/2
         }, 1))
-        this.upgrades.push(new Upgrade("Farmer", 7777, [0,2], "Hire a Farmer to harvest crops for you.<br><i>\"A lifetime supply of corn for forever harvesting!\"<i>", () => {
+        this.upgrades.push(new Upgrade("Farmer", 7777, [0,4], "Hire a Farmer to harvest crops for you.<br><i>\"A lifetime supply of corn for forever harvesting!\"<i>", () => {
             farmers[random(0, 1000000)] = new Farmer()
         }, -1, 1.3))
 
+        //Speed Up Upgrade Rules
         this.upgrades[0].build()
         setInterval(() => {
             if(this.growthtime === 30) this.upgrades[0].element.style.display = "none"
@@ -432,27 +522,72 @@ class Game {
         }, 500)
 
         //achievements
-        this.achievments = []
-        this.achievments.push(new Achievement("Faster and Faster", [0,0], () => {return (game.upgrades[0].amountowned > 0)}))
-
-        //check to unlock upgrades and achievements
-        setInterval(() => {
-            let i = 0
-            this.upgrades.forEach((up) => {
-                if(i-1 <= this.bestUpgrade && !up.built) {
-                    up.build()
-                }
-                i++
-            })
-
-            this.achievments.forEach((a) => {
-                if(a.unlockFunc()) a.build()
-            })
-        }, 500)
+        this.achievements = []
+        //corn types
+        this.achievements.push(new Achievement("First Harvest", "Successfully harvest your first crop.", [5,0], () => {return (game.score > 0)}))
+        this.achievements.push(new Achievement("I'm Blue", "Unlock Blue Corn.", [6,0], () => {return (game.crop === 1)}))
+        //lifetime score
+        this.achievements.push(new Achievement("It's Corn", "Harvest 9 Corn.", [0, 2], () => {return (game.lifetimescore >= 9)}))
+        this.achievements.push(new Achievement("Music to my Ears", "Harvest 100 Corn.", [1, 2], () => {return (game.lifetimescore >= 100)}))
+        this.achievements.push(new Achievement("A-maize-ing!", "Harvest 1,000 Corn.", [2, 2], () => {return (game.lifetimescore >= 1000)}))
+        this.achievements.push(new Achievement("7s across the Field", "Harvest 7,777 Corn.", [3, 2], () => {return (game.lifetimescore >= 7777)}))
+        this.achievements.push(new Achievement("Corn Tycoon", "Harvest 50,000 Corn.", [4, 2], () => {return (game.lifetimescore >= 50000)}))
+        //Speed up
+        this.achievements.push(new Achievement("Faster and Faster", "Buy a Speed Up Upgrade.", [0,0], () => {return (game.upgrades[0].amountowned > 0)}))
+        this.achievements.push(new Achievement("Instantaneous", "Reach maximum crop growth speed.", [2,0], () => {return (game.growthtime == 30)}))
+        this.achievements.push(new Achievement("Instant Blue Corn", "Reach maximum crop growth speed for Blue Corn.", [1,0], () => {return (game.growthtime == 30 && game.crop === 1)}))
+        //Resize
+        this.achievements.push(new Achievement("Resize", "Buy a Resize Upgrade.", [0,1], () => {return (game.upgrades[1].amountowned > 0)}))
+        this.achievements.push(new Achievement("4x4 Award", "Have a field width of 4.", [1,1], () => {return (game.upgrades[1].amountowned >= 3)}))
+        this.achievements.push(new Achievement("Count Corn not Sheep", "Have a field width of 7.", [2,1], () => {return (game.upgrades[1].amountowned >= 6)}))
+        //Resilliant Crops
+        this.achievements.push(new Achievement("Hit the Gym", "Buy a Resilliant Crops Upgrade.", [0,3], () => {return (game.upgrades[2].amountowned >= 1)}))
+        this.achievements.push(new Achievement("Yes, Buff Plants", "Have a decay time of 3 seconds", [1,3], () => {return (game.decaytime >= 180)}))
+        this.achievements.push(new Achievement("Super-Plant Strength", "Have a decay time of 10 seconds", [2,3], () => {return (game.decaytime >= 600)}))
+        this.achievements.push(new Achievement("High Protein", "Have a decay time of 30 seconds", [3,3], () => {return (game.decaytime >= 1800)}))
+        this.achievements.push(new Achievement("Invincible Corn", "Have a 1 minute decay time.", [4,3], () => {return (game.decaytime >= 3600)}))
+        //special
+        this.achievements.push(new Achievement("What a Nerd", "View the source code on Github.", [5,2], () => {return (game.openedgithub)}))
+        this.achievements.push(new Achievement("Ancient Version", "View the original Corn Country.", [6,2], () => {return (game.openedoldgame)}))
+        this.achievements.push(new Achievement("Clicked \"To Harvest\"", "Follow Simple Instructions.", [6,3], () => {return (game.clickedtoharvest)}))
         
+        //check to unlock upgrades and achievements
+        setTimeout(() => {
+            setInterval(() => {
+                let i = 0
+                this.upgrades.forEach((up) => {
+                    if(i-1 <= this.bestUpgrade && !up.built) {
+                        up.build()
+                    }
+                    i++
+                })
+
+                this.achievements.forEach((a) => {
+                    if(a.unlockFunc()) a.build()
+                })
+            }, 500)
+        }, 1000)
+
+        game = this
+        this.initAchieves()
+        setInterval(() => {
+            this.save()
+        }, 30000)
+    }
+    async initAchieves() {
+        for(let a in this.achievements) {
+            await this.achievements[a].addToAchievesPage()
+        }
+        if(localStorage.getItem("data")) {
+            await this.load()
+            document.getElementById("loading").remove()
+        }
+        this.store.style = "display: block;"
+        this.loaded = true
     }
     addScore(num) {
         this.score += num
+        this.lifetimescore += num
         document.getElementById("score").innerText = this.score
 
         document.title = this.score + " corn - Corn Country 2 - GreyBeard42's Homepage"
@@ -465,5 +600,77 @@ class Game {
             }
             i++
         })
+    }
+    save() {
+        let obj = {
+            score: this.score,
+            lifetimescore: this.lifetimescore,
+            openedgithub: this.openedgithub,
+            openedoldgame: this.openedoldgame,
+            clickedtoharvest: this.clickedtoharvest,
+        }
+        obj.upgrades = []
+        let i = 0
+        this.upgrades.forEach((u) => {
+            obj.upgrades[i] = u.amountowned
+            i++
+        })
+        obj.achievements = []
+        i = 0
+        this.achievements.forEach((a) => {
+            obj.achievements[i] = a.unlocked
+            i++
+        })
+        localStorage.setItem("data", JSON.stringify(obj))
+
+        this.announceSaved()
+    }
+    async announceSaved() {
+        let outer = document.createElement("div")
+        outer.classList.add("achievement")
+        outer.appendChild(await sprite(5, 0))
+
+        let textdiv = document.createElement("div")
+        let title = document.createElement("a")
+        title.innerHTML = "Game Saved<br>You're Welcome"
+        textdiv.appendChild(title)
+        outer.appendChild(textdiv)
+
+        document.getElementById("achieveouter").appendChild(outer)
+
+        setTimeout(() => {outer.remove()}, 7000)
+    }
+    async load() {
+        let obj = JSON.parse(localStorage.getItem("data"))
+        if(!localStorage.getItem("data")) return
+        //achivements
+        let i = 0
+        obj.achievements.forEach((a) => {
+            if(a) game.achievements[i].build(false)
+            i++
+        })
+        this.score = obj.score
+        this.lifetimescore = obj.lifetimescore
+        this.openedoldgame = obj.openedoldgame
+        this.openedgithub = obj.openedgithub
+        this.clickedtoharvest = obj.clickedtoharvest
+        //upgrades
+        for(let i in obj.upgrades) {
+            let upgrade = this.upgrades[i]
+            let u = obj.upgrades[i]
+            if(u > 0 && !upgrade.built) await upgrade.build()
+            for(let n=0; n<u; n++) {
+                game.score += upgrade.cost
+                upgrade.buy()
+            }
+
+            /* if(upgrade.amountowned >= upgrade.maxamount && upgrade.maxamount>0) {
+                upgrade.element.remove()
+            } */
+        }
+    }
+    HARDRESET() {
+        localStorage.removeItem("data")
+        location.reload()
     }
 }

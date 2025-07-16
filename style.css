@@ -3,10 +3,12 @@
     src: url(corn.ttf);
 }
 body{
-    overflow: hidden;
+    background-color: #81e681;
     color: #a8eea8;
     font-family: corn;
     image-rendering: pixelated;
+    overflow: hidden;
+    user-select: none;
 }
 #bottom {
     font-size: 20px;
@@ -22,7 +24,7 @@ body{
     border-right: solid 3px;
     padding: 0 5px;
 }
-#bottom button {
+button {
     color: #a8eea8;
     background: none;
     border: solid 3px;
@@ -35,11 +37,11 @@ body{
     right: 0;
     width: min(400px, 90vw);
     height: 100vh;
-    color: #4b3a3188;
+    color: #5ba25b;
     background-color: #81e681;
     padding: 15px;
     user-select: none;
-    box-shadow: #a8eea8 -1px 0 5px 5px;
+    box-shadow: #5ba25b -1px 0 5px 5px;
 }
 #store h1 {
     font-size: 35px;
@@ -54,6 +56,7 @@ body{
     margin-bottom: 8px;
 }
 .upgrade {
+    color: #6f8d68;
     width: 100%;
     display: flex;
 }
@@ -61,7 +64,7 @@ body{
     flex: 0.3;
     height: 100%;
     background-color: #42332b;
-    border: #549254 solid 5px;
+    border: #549254 solid 4px;
 }
 .upgrade div {
     font-size: 20px;
@@ -80,3 +83,110 @@ body{
     height: 10px;
 }
 .upgradeProgress div {height: 100%;}
+
+#achieveouter {
+    width: 275px;
+}
+.achievement {
+    background-color: #81e681;
+    border: #5ba25b solid 3px;
+    box-shadow: -3px 3px 5px #5ba25b;
+    padding: 8px;
+    color: #549254;
+    display: flex;
+    margin-bottom: 5px;
+}
+.achievement div {
+    flex: 1;
+}
+.achievement img {
+    width: 40px;
+    margin-right: 10px;
+    filter: drop-shadow(-2px 2px 5px #549254);
+}
+
+#achievements {
+    position: absolute;
+    top: calc(50vh - min(150px, 35vh) - 20px);
+    left: calc(50vw - min(250px, 40vw));
+    width: min(500px, 80vw);
+    height: min(300px, 70vh);
+    padding: 15px;
+    user-select: none;
+    color: #549254;
+    background-color: #81e681;
+    border: solid 4px;
+    box-shadow: #5ba25b -2px 2px 5px 4px;
+}
+#achievements h1 {
+    font-size: 30px;
+    display: inline;
+    margin: 0;
+}
+#achieveinner {display: block; margin-top: 15px;}
+.achievementIcon {
+    position: relative;
+    display: inline-block;
+    background: #8bf58b;
+    border: #549254 solid 4px;
+    margin: 2px 2px;
+    height: 50px;
+    width: 50px;
+}
+.achievementIcon img {
+    width: 50px;
+    filter: drop-shadow(-2px 2px 5px #549254);
+}
+.tooltip {
+    position: absolute;
+    left: 10px;
+    bottom: 50px;
+    width: 250px;
+    height: 54px;
+    z-index: 10;
+    padding: 4px;
+    background: #81e681;
+    box-shadow: #5ba25b -2px 2px 5px 4px;
+}
+.tooltip img {margin-right: 6px;}
+.tooltip a {display: block; font-size: 18px;}
+
+#loading {
+    position: absolute;
+    top: calc(50vh - min(50px, 10vh) - 20px);
+    left: calc(50vw - min(250px, 40vw));
+    width: min(500px, 80vw);
+    padding: 15px;
+    user-select: none;
+    color: #549254;
+    background-color: #81e681;
+    border: solid 4px;
+    box-shadow: #5BA25B -2px 2px 5px 4px;
+    font-size: min(25px, 5vh);
+    text-align: center;
+    padding: min(25px, 5vh) 0;
+}
+
+#settings {
+    position: absolute;
+    top: calc(50vh - min(50px, 10vh) - 20px);
+    left: calc(50vw - min(250px, 40vw));
+    width: min(500px, 80vw);
+    padding: 15px;
+    user-select: none;
+    color: #549254;
+    background-color: #81e681;
+    border: solid 4px;
+    box-shadow: #5BA25B -2px 2px 5px 4px;
+}
+#settings h1 {
+    font-size: 30px;
+    display: inline;
+    margin: 0;
+}
+#innerSettings {
+    margin-top: 5px;
+}
+#settings button {
+    color: #549254;
+}

@@ -29,20 +29,43 @@
             <a>Corn Country <sup>2</sup></a>
             <a><span id="score">0</span> corn</a>
             <a id="outercps" style="display: none"><span id="cps">0</span> per second</a>
-            <a href="https://github.com/GreyBeard42/corncountry2" style="color: inherit;">View on Github</a>
-            <a href="https://greybeard42.github.io/corncountry/game" style="color: inherit; border: none;">Play the Original</a>
+            <a onclick="game.openedgithub = true" target="_blank" href="https://github.com/GreyBeard42/corncountry2" style="color: inherit;">View on Github</a>
+            <a onclick="game.openedoldgame = true" target="_blank" href="https://greybeard42.github.io/corncountry/game" style="color: inherit; border: none;">Play the Original</a>
 
-            <button id="openStore" style="float: right; margin-right: 15px;">Open Store</button>
+            <div style="float: right; margin-right: 15px;">
+                <button id="openSettings">Settings</button>
+                <button id="openAchieves">View Achievements</button>
+                <button id="openStore">Open Store</button>
+            </div>
         </div>
       
         <div id="canvas"></div>
 
-        <div id="store">
+        <div id="store" style="display: none;">
             <h1>Store</h1>
             <h1 id="closeStore" style="float: right;">X</h1>
             <br>
             <div id="storeinner"></div>
         </div>
+
+        <div id="achievements" style="display: none;">
+            <h1>Achievements</h1>
+            <h1 onclick="document.getElementById('achievements').style = 'display: none;'" style="float: right;">X</h1>
+            <div id="achieveinner"></div>
+        </div>
+
+        <div id="achieveouter"></div>
+
+        <div id="settings" style="display: none;">
+            <h1>Settings</h1>
+            <h1 onclick="document.getElementById('settings').style='display: none;'" style="float: right;">X</h1>
+            <div id="innerSettings">
+                <button onclick="game.save()">Save</button>
+                <button onclick="hardreset()">Hard Reset</button>
+            </div>
+        </div>
+
+        <div id="loading">Loading Save Data...</div>
 
         <script src="script.js"></script>
     </body>
