@@ -2,7 +2,8 @@
     font-family: corn;
     src: url(corn.ttf);
 }
-body{
+#top {display: none;}
+body {
     background-color: #81e681;
     color: #a8eea8;
     font-family: corn;
