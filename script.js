@@ -178,7 +178,8 @@ function increaseSize() {
 function sprite(x,y,w=11,h=w) {
     return new Promise((resolve, reject) => {
         let sheet = document.createElement("img")
-        sheet.src = pre+"images/icons.png"
+        sheet.crossOrigin = 'anonymous'
+        sheet.src = "https://cdn.statically.io/gh/greybeard42/corncountry2/main/"+"images/icons.png"
         sheet.style = "display: none;"
         document.body.appendChild(sheet)
         sheet.onload = () => {
