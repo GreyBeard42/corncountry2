@@ -6,10 +6,12 @@ let clickinglastframe, hasClicked
 let font, cropsprites, farmersprites
 let game
 
+const pre = "https://cdn.jsdelivr.net/gh/GreyBeard42/corncountry2@main/"
+
 function preload() {
-    font = loadFont("corn.ttf")
-    cropsprites = loadImage("images/crops.png")
-    farmersprites = loadImage("images/farmer.png")
+    font = loadFont(pre+"corn.ttf")
+    cropsprites = loadImage(pre+"images/crops.png")
+    farmersprites = loadImage(pre+"images/farmer.png")
 }
 
 function setup() {
@@ -176,7 +178,7 @@ function increaseSize() {
 function sprite(x,y,w=11,h=w) {
     return new Promise((resolve, reject) => {
         let sheet = document.createElement("img")
-        sheet.src = "images/icons.png"
+        sheet.src = pre+"images/icons.png"
         sheet.style = "display: none;"
         document.body.appendChild(sheet)
         sheet.onload = () => {
