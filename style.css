@@ -31,8 +31,8 @@ button {
     border: solid 3px;
     font-family: corn;
     font-size: 17px;
-    padding: 0;
-    margin: 0 4px;
+    padding: 0 4px;
+    margin: 0 2px;
 }
 #store {
     position: absolute;
