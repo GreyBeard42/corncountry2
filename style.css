@@ -45,6 +45,8 @@ button {
     padding: 15px;
     user-select: none;
     box-shadow: #5ba25b -1px 0 5px 5px;
+    overflow: scroll;
+    scrollbar-color: #a8eea8 #73cb73;
 }
 #store h1 {
     font-size: 35px;

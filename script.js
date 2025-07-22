@@ -1,12 +1,15 @@
 let farmland, grass, lastgrowtick
 let scale, w, h, edges
 let farmers
-let animations, animateid
+let animations, animateid, rain
 let clickinglastframe, hasClicked
 let font, cropsprites, farmersprites
 let game
 
-const pre = "https://cdn.jsdelivr.net/gh/GreyBeard42/corncountry2@main/"
+// mode=0 gets assets localy while mode=1 fetches published assets from github
+const mode = 1
+let pre = "https://cdn.jsdelivr.net/gh/GreyBeard42/corncountry2@main/"
+if(mode === 0) pre=""
 
 function preload() {
     font = loadFont(pre+"corn.ttf")
@@ -31,6 +34,8 @@ function setup() {
     clickinglastframe = false
     hasClicked = false
     lastgrowtick = 0
+
+    rain = {}
 
     grass = {}
     for(let x=-50; x<50; x++) {
@@ -66,10 +71,16 @@ function draw() {
             } else temp += char
         })
         y = parseInt(temp)
-        image(cropsprites,x*scale,y*scale, scale+1,scale+1,(18*(grass[key])),0,18,18)
+        image(cropsprites,x*scale,y*scale, scale+1,scale+1,(18*(grass[key]%4)),(18*Math.floor((grass[key]/4))),18,18)
         if(frameCount % 30 === 0) {
-            grass[key]++
-            if(grass[key] > 3) grass[key] = 0
+            if(game.weather === -1) {
+                if(grass[key] < 3) grass[key] = 3
+                if(grass[key] < 6) grass[key]++
+            } else {
+                grass[key]++
+                if(grass[key] === 4) grass[key] = 0
+                if(grass[key] > 3) grass[key] -= 2
+            }
         }
     }
 
@@ -134,22 +145,36 @@ function draw() {
         animations[a].draw()
     }
 
+    translate(-scale*1.5, -scale*1.5)
     if(localStorage.getItem("data")) hasClicked = true
     if(!hasClicked) {
         push()
-        translate(-scale*1.5, -scale*1,5)
         textAlign(CENTER)
         textSize(scale/3)
         fill(0,0,0,75)
-        text("CLICK TO HARVEST", width/2+5, 15)
+        text("CLICK TO HARVEST", width/2+5, 15+scale/2)
         fill("white")
-        text("CLICK TO HARVEST", width/2, 10)
+        text("CLICK TO HARVEST", width/2, 10+scale/2)
         //taking it quite litterally
         if(mouseIsPressed) if(mouseX > width/2-scale*1.5 && mouseX < width/2+scale*1.5) {
             if(mouseY > scale/3 && mouseY < scale*3/4) game.clickedtoharvest = true
         }
         pop()
     }
+
+    if(game.weather === 1 && Math.random() > 0.75) {
+        let id = round(random(0, 10000))
+        rain[id] = new Raindrop(random(0,width), id)
+    }
+    for(let drop in rain) {
+        rain[drop].draw()
+    }
+
+    colorMode(RGBA, 100)
+    noStroke()
+    if(game.lastweather === -1) fill(207, 197, 186, game.fogOpacity)
+    else fill(136, 168, 179, game.fogOpacity)
+    rect(0,0,width,height)
 }
 
 function resize(x1, x2, y1, y2) {
@@ -179,7 +204,8 @@ function sprite(x,y,w=11,h=w) {
     return new Promise((resolve, reject) => {
         let sheet = document.createElement("img")
         sheet.crossOrigin = 'anonymous'
-        sheet.src = "https://cdn.statically.io/gh/greybeard42/corncountry2/main/"+"images/icons.png"
+        if(mode === 0) sheet.src = "images/icons.png"
+        else sheet.src = "https://cdn.statically.io/gh/greybeard42/corncountry2/main/"+"images/icons.png"
         sheet.style = "display: none;"
         document.body.appendChild(sheet)
         sheet.onload = () => {
@@ -211,7 +237,7 @@ function sprite(x,y,w=11,h=w) {
 
 class Crop {
     constructor(id) {
-        this.img = game.crop*6+5
+        this.img = game.crop*6+8
         this.lastimg = this.img+5
         this.growth = 0
         this.time = game.growthtime
@@ -224,11 +250,13 @@ class Crop {
         if(this.growth > this.time) this.img = this.lastimg
         if(this.growth > this.time+game.decaytime) this.reset()
     }
-    harvest(x=mouseX,y=mouseY) {
+    harvest(x=mouseX,y=mouseY,multi=1) {
         if(this.growth >= this.time-10) {
-            game.addScore(game.cropValue)
+            if(game.weather === -1) multi = multi*0.65
+            else if(game.weather === 1) multi = multi*1.25
+            game.addScore(game.cropValue*multi)
             this.reset()
-            animations[animateid] = new Animation("+"+game.cropValue, random(x-scale*2, x-scale), y-scale*1.5)
+            animations[animateid] = new Animation("+"+Math.ceil(game.cropValue*multi), random(x-scale*2, x-scale), y-scale*1.5)
             animateid++
         }
     }
@@ -244,7 +272,6 @@ class Farmer {
         this.y = 0
         this.farming = false
         this.cooldown = 0
-        this.minwalking = 100
     }
     draw() {
         image(farmersprites,((width-(w+4)*scale)/2)+this.x,this.y, scale*0.45,scale, (12*(this.img%7)+12),0, 12,26)
@@ -256,10 +283,10 @@ class Farmer {
             return
         }
 
-        if(frameCount%5==0) this.img++
+        if(frameCount%3==0) this.img++
         this.img %= 7
 
-        this.x += scale/130
+        this.x += scale/50
         if(this.x > scale*(w+0.5)) {
             this.y += scale
             this.x = 0
@@ -278,14 +305,12 @@ class Farmer {
             y = parseInt(temp)
 
             let crop = farmland[key]
-            if(this.minwalking <= 0) if(crop.growth > crop.time) if((this.x+scale*0.2>x*scale && this.x+scale*0.2<(x+1)*scale) && (this.y+scale/2>y*scale && this.y+scale/2<(y+1)*scale)) {
+            if(crop.growth > crop.time) if((this.x+scale*0.2>x*scale && this.x+scale*0.2<(x+1)*scale) && (this.y+scale/2>y*scale && this.y+scale/2<(y+1)*scale)) {
                 this.farming = true
-                this.cooldown = 60
-                this.minwalking = 100
-                farmland[key].harvest(this.x+width/2.5, this.y+scale*1.5)
+                this.cooldown = 10
+                farmland[key].harvest(this.x+width/2.5, this.y+scale*1.5, 3)
             }
         }
-        this.minwalking--
     }
 }
 
@@ -306,6 +331,23 @@ class Animation {
         this.y -= this.speed
         this.opacity -= 0.5
         if(this.opacity<10) delete animations[this.id]
+    }
+}
+
+class Raindrop {
+    constructor(x, id) {
+        this.x = x
+        this.y = -50
+        this.id = id
+    }
+    draw() {
+        push()
+        rectMode(CENTER)
+        fill("#8abdcf")
+        rect(this.x, this.y, 5, 30)
+        pop()
+        this.y += 3
+        if(this.y > height+50) delete animations[this.id]
     }
 }
 
@@ -467,6 +509,10 @@ class Game {
         this.cropValue = 3
         this.crop = 0
 
+        this.weather = 0
+        this.fogOpacity = 0
+        this.lastweather = 0
+
         this.openedgithub = false
         this.openedoldgame = false
         this.clickedtoharvest = false
@@ -502,10 +548,13 @@ class Game {
         //upgrades
         this.bestUpgrade = 0
         this.upgrades = []
-        this.upgrades.push(new Upgrade("Speed Up", 9, [0,0], "Speed up crop growth<br><i>\"3 seconds is just wayyy too slow for my farm...\"</i>", () => {game.growthtime = max(game.growthtime-30, 30)}, -1, 1.1))
+        this.upgrades.push(new Upgrade("Speed Up", 9, [0,0], "Speed up crop growth<br><i>\"3 seconds is just wayyy too slow for my farm...\"</i>", () => {game.growthtime = max(game.growthtime-30, 30)}, 5, 1.1))
         this.upgrades.push(new Upgrade("Resize", 50, [2,1], "Increase farmland dimensions by 1.<br><i>\"Why not (w+1)+(h+1)-1 more corn?\"</i>", increaseSize, 25, 2))
         this.upgrades.push(new Upgrade("Resilliant Crops", 750, [2,3], "Increase decay time", () => {game.decaytime = floor(game.decaytime*1.25)}, -1, 1.2))
-        this.upgrades.push(new Upgrade("Blue Corn", 2500, [6,0], "Unlock Blue Corn.<br><i>\"Can we finnally eat Blue goldfish??\"</i>", () => {
+        this.upgrades.push(new Upgrade("Farmer", 2500, [0,4], "Hire a Farmer to harvest crops for you.<br><i>\"A lifetime supply of corn for forever harvesting!\"<i>", () => {
+            farmers[random(0, 1000000)] = new Farmer()
+        }, -1, 1.2))
+        this.upgrades.push(new Upgrade("Blue Corn", 7777, [6,0], "Unlock Blue Corn.<br><i>\"Can we finnally eat Blue goldfish??\"</i>", () => {
             game.crop = 1
             for(let key in farmland) {
                 farmland[key] = new Crop(key)
@@ -513,15 +562,12 @@ class Game {
             game.cropValue = 5
             game.growthtime = (6*60+game.growthtime)/2
         }, 1))
-        this.upgrades.push(new Upgrade("Farmer", 7777, [0,4], "Hire a Farmer to harvest crops for you.<br><i>\"A lifetime supply of corn for forever harvesting!\"<i>", () => {
-            farmers[random(0, 1000000)] = new Farmer()
-        }, -1, 1.3))
+        this.upgrades.push(new Upgrade("Blue Speed Up", 777, [1,0], "Speed up Blue Corn growth<br><i>\"Super Sonic Speed\"</i>", () => {game.growthtime = max(game.growthtime-30, 30)}, 6, 1.1))
 
         //Speed Up Upgrade Rules
         this.upgrades[0].build()
         setInterval(() => {
-            if(this.growthtime === 30) this.upgrades[0].element.style.display = "none"
-            else this.upgrades[0].element.style.display = "block"
+            if(this.crop != 0) this.upgrades[0].element.style.display = "none"
         }, 500)
 
         //achievements
@@ -576,6 +622,15 @@ class Game {
         setInterval(() => {
             this.save()
         }, 30000)
+
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault()
+                game.save()
+            }
+        })
+
+        setTimeout(this.weatherTick, 180000+Math.random()*180000)
     }
     async initAchieves() {
         for(let a in this.achievements) {
@@ -589,6 +644,7 @@ class Game {
         this.loaded = true
     }
     addScore(num) {
+        num = ceil(num)
         this.score += num
         this.lifetimescore += num
         document.getElementById("score").innerText = this.score
@@ -603,6 +659,32 @@ class Game {
             }
             i++
         })
+    }
+    setWeather(weather) {
+        console.log("Weather set to "+weather)
+        this.weather = weather
+        let int
+        if(weather === 0) {
+            int = setInterval(() => {
+                this.fogOpacity--
+                if(this.fogOpacity <= 0) clearInterval(int)
+            }, 10)
+        } else {
+            int = setInterval(() => {
+                this.fogOpacity++
+                if(this.fogOpacity >= 150) clearInterval(int)
+            }, 10)
+            this.lastweather = weather
+        }
+        setTimeout(() => {
+            this.setWeather(0)
+        }, 45000+Math.random()*60000)
+    }
+    weatherTick() {
+        console.log("Weather Tick")
+        if(Math.random() > 0.5) game.setWeather(-1)
+        else game.setWeather(1)
+        setTimeout(game.weatherTick, 180000+Math.random()*180000)
     }
     save() {
         let obj = {
