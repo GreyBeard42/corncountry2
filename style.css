@@ -53,6 +53,9 @@ button {
     margin: 0 0 15px;
     display: inline;
 }
+#storeinner {
+    padding-bottom: 60px;
+}
 .upgradeOuter {
     background-color: #a8eea8;
     border-radius: 5px;
